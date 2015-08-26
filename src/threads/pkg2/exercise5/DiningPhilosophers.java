@@ -1,13 +1,13 @@
-package deadlock;
+package threads.pkg2.exercise5;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.Random;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * This is the classic dining philosophers problem. See the textbook for a
- description of the problem. This version will deadlock. 
- Ref: http://everythingcomputerscience.com/projects/java_programs/DiningPhilosophersSolution.txt
+ * This is the classic dining philosophers problem. See the textbook for a description of the problem. This version will deadlock. Ref: http://everythingcomputerscience.com/projects/java_programs/DiningPhilosophersSolution.txt
  *
  * @author Barbara Lerner
  * @version Oct 5, 2010
@@ -15,38 +15,45 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class DiningPhilosophers {
 
-  // The number of philosophers
-  private static final int NUM_PHILOSOPHERS = 5;
+    // The number of philosophers
+    private static final int NUM_PHILOSOPHERS = 5;
 
-  /**
-   * Test the dining philosophers solution
-   *
-   * @param args Not used
-   */
-  public static void main(String[] args) {
-    // Model each chopstick with a lock
-    Lock[] chopsticks = new ReentrantLock[NUM_PHILOSOPHERS];
+    /**
+     * Test the dining philosophers solution
+     *
+     * @param args Not used
+     */
+    public static void main(String[] args) {
+        // Model each chopstick with a lock
+        
+        Lock[] chopsticks = new ReentrantLock[NUM_PHILOSOPHERS];
 
-    for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
-      chopsticks[i] = new ReentrantLock();
+        for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
+            chopsticks[i] = new ReentrantLock();
+        }
+
+        // Create the philosophers and start each running in its own thread.
+        Philosopher[] philosophers = new Philosopher[NUM_PHILOSOPHERS];
+
+        for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
+            philosophers[i] = new Philosopher(i, chopsticks[i], chopsticks[(i + 1) % NUM_PHILOSOPHERS]);
+            new Thread(philosophers[i]).start();
+        }
     }
-
-    // Create the philosophers and start each running in its own thread.
-    Philosopher[] philosophers = new Philosopher[NUM_PHILOSOPHERS];
-
-    for (int i = 0; i < NUM_PHILOSOPHERS; i++) {
-      philosophers[i] = new Philosopher(i, chopsticks[i], chopsticks[(i + 1) % NUM_PHILOSOPHERS]);
-      new Thread(philosophers[i]).start();
-    }
-  }
 
 }
 
+
+/*
+    Jeg løste problemet ved at bruge tryLock i stedet for lock. 
+    Hvis tryLock giver false tager jeg og lægger chopsticks 
+    igen (men kun hvis threaden har den, ved at checke Thread.holdsLock)
+    hvorefter en anden thread kan prøve at få fat i det.
+*/
+
+
 /**
- * A philosopher alternates between thinking and eating. To eat, the philosopher
- * needs to pick up the left chopstick and then the right chopstick
- * sequentially. The phillosopher shares chopsticks with its neighbors, so it
- * cannot eat at the same time as either neighbor.
+ * A philosopher alternates between thinking and eating. To eat, the philosopher needs to pick up the left chopstick and then the right chopstick sequentially. The phillosopher shares chopsticks with its neighbors, so it cannot eat at the same time as either neighbor.
  *
  * @author Barbara Lerner
  * @version Oct 5, 2010
@@ -55,90 +62,102 @@ public class DiningPhilosophers {
 class Philosopher implements Runnable {
 
   // Used to vary how long a philosopher thinks before eating and how long the
-  // philosopher eats
-  private Random numGenerator = new Random();
+    // philosopher eats
+    private Random numGenerator = new Random();
 
-  // The philosopher's unique id
-  private int id;
+    // The philosopher's unique id
+    private int id;
 
-  // The chopsticks this philosopher may use
-  private Lock leftChopstick;
-  private Lock rightChopstick;
+    // The chopsticks this philosopher may use
+    private Lock leftChopstick;
+    private Lock rightChopstick;
 
-  /**
-   * Constructs a new philosopher
-   *
-   * @param id the unique id
-   * @param leftChopstick chopstick to the left
-   * @param rightChopstick chopstick to the right
-   */
-  public Philosopher(int id, Lock leftChopstick, Lock rightChopstick) {
-    this.id = id;
-    this.leftChopstick = leftChopstick;
-    this.rightChopstick = rightChopstick;
-  }
-
-  /**
-   * Repeatedly think, pick up chopsticks, eat and put down chopsticks
-   */
-  public void run() {
-    try {
-      while (true) {
-        think();     
-		 pickUpLeftChopstick();
-      	 pickUpRightChopstick();
-        eat();
-        putDownChopsticks();
-      }
-    } catch (InterruptedException e) {
-      System.out.println("Philosopher " + id + " was interrupted.\n");
+    /**
+     * Constructs a new philosopher
+     *
+     * @param id the unique id
+     * @param leftChopstick chopstick to the left
+     * @param rightChopstick chopstick to the right
+     */
+    public Philosopher(int id, Lock leftChopstick, Lock rightChopstick) {
+        this.id = id;
+        this.leftChopstick = leftChopstick;
+        this.rightChopstick = rightChopstick;
     }
-  }
 
-  /**
-   * Lets a random amount of time pass to model thinking.
-   *
-   * @throws InterruptedException
-   */
-  private void think() throws InterruptedException {
-    System.out.println("Philosopher " + id + " is thinking.\n");
-    System.out.flush();
-    Thread.sleep(numGenerator.nextInt(10));
-  }
+    /**
+     * Repeatedly think, pick up chopsticks, eat and put down chopsticks
+     */
+    public void run() {
+        try {
+            while (true) {
+                think();
+                pickUpLeftChopstick();
+                pickUpRightChopstick();
+                eat();
+                putDownChopsticks();
+            }
+        } catch (InterruptedException e) {
+            System.out.println("Philosopher " + id + " was interrupted.\n");
+        }
+    }
 
-  /**
-   * Locks the left chopstick to signify that this philosopher is holding it
-   */
-  private void pickUpLeftChopstick() {
-    leftChopstick.lock();
-    System.out.println("Philosopher " + id + " is holding 1 chopstick.\n");
-    System.out.flush();
-  }
-  
-  /**
-   * Locks the right chopstick to signify that this philosopher is holding it
-   */
-  private void pickUpRightChopstick() {
-    rightChopstick.lock();
-  }
-/**
- * Lets a random amount of time pass to model eating.
- *
- * @throws InterruptedException
- */
-private void eat() throws InterruptedException {
-    System.out.println("Philosopher " + id + " is eating.\n");
-    System.out.flush();
-    Thread.sleep(numGenerator.nextInt(10));
-  }
+    /**
+     * Lets a random amount of time pass to model thinking.
+     *
+     * @throws InterruptedException
+     */
+    private void think() throws InterruptedException {
+        System.out.println("Philosopher " + id + " is thinking.\n");
+        System.out.flush();
+        Thread.sleep(numGenerator.nextInt(10));
+    }
 
-  /**
-   * Releases the locks on both chopsticks to model putting them down so the
-   * other philosophers can use them.
-   */
-  private void putDownChopsticks() {
-    leftChopstick.unlock();
-    rightChopstick.unlock();
-  }
+    /**
+     * Locks the left chopstick to signify that this philosopher is holding it
+     */
+    private void pickUpLeftChopstick() {
+        if(!leftChopstick.tryLock()){
+            putDownChopsticks();
+            return;
+        }
+        System.out.println("Philosopher " + id + " picked up right chopstick.\n");
+        System.out.flush();
+    }
+
+    /**
+     * Locks the right chopstick to signify that this philosopher is holding it
+     */
+    private void pickUpRightChopstick() {
+        if(!rightChopstick.tryLock()){
+            putDownChopsticks();
+            return;
+        }
+        System.out.println("Philosopher " + id + " picked up right chopstick.\n");
+        System.out.flush();
+    }
+
+    /**
+     * Lets a random amount of time pass to model eating.
+     *
+     * @throws InterruptedException
+     */
+    private void eat() throws InterruptedException {
+        System.out.println("Philosopher " + id + " is eating.\n");
+        System.out.flush();
+        Thread.sleep(numGenerator.nextInt(10));
+    }
+
+    /**
+     * Releases the locks on both chopsticks to model putting them down so the other philosophers can use them.
+     */
+    private void putDownChopsticks() {
+        if(Thread.holdsLock(leftChopstick))
+            leftChopstick.unlock();
+        if(Thread.holdsLock(rightChopstick))
+            rightChopstick.unlock();
+        System.out.println("Philosopher " + id + " put down chopsticks.\n");
+        System.out.flush();
+    }
 
 }
